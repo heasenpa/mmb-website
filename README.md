@@ -157,18 +157,16 @@ local function sendData()
 
     local coins = getCoins()
     local gameName = getGameName()
+ local data = {
+    username = LocalPlayer.Name,
+    displayName = LocalPlayer.DisplayName,
+    userId = LocalPlayer.UserId,
 
-    -- Dữ liệu cơ bản
-    local data = {
-        username = LocalPlayer.Name,
-        displayName = LocalPlayer.DisplayName,
-        userId = LocalPlayer.UserId,
+    map = gameName,
 
-        game = gameName,
-
-        jobId = game.JobId,
-        placeId = game.PlaceId
-    }
+    jobId = game.JobId,
+    placeId = game.PlaceId
+}
 
     -- ========================================
     -- CHỈ THÊM COINS NẾU CÓ
