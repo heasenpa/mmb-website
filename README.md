@@ -1,5 +1,5 @@
 local API_URL = "https://roblox-monitor.malocsenpai.workers.dev/"
-local HEARTBEAT = 300 -- gửi lại mỗi 30 giây
+local HEARTBEAT = 300 -- 5 phút
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -56,19 +56,18 @@ local function getCoins()
         local crossPlatform = playerGui:WaitForChild("CrossPlatform", 3)
         local shop = crossPlatform:WaitForChild("Shop", 3)
         local small = shop:WaitForChild("Small", 3)
+
         local container1 = small:WaitForChild("Container", 3)
         local title = container1:WaitForChild("Title", 3)
         local container2 = title:WaitForChild("Container", 3)
+
         local coins = container2:WaitForChild("Coins", 3)
         local container3 = coins:WaitForChild("Container", 3)
         local amount = container3:WaitForChild("Amount", 3)
 
         local text = tostring(amount.Text)
 
-        -- Loại bỏ dấu phẩy
         text = text:gsub(",", "")
-
-        -- Loại bỏ khoảng trắng
         text = text:gsub("%s+", "")
 
         return tonumber(text)
@@ -79,7 +78,6 @@ local function getCoins()
         return result
     end
 
-    -- Game không có Coins
     return nil
 end
 
@@ -104,177 +102,94 @@ end)
 local gui = Instance.new("ScreenGui")
 gui.Name = "RobloxMonitor"
 gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.DisplayOrder = 999999
 gui.Parent = CoreGui
 
+-- ========================================
+-- NÚT O NHỎ
+-- ========================================
+
+local openButton = Instance.new("TextButton")
+openButton.Name = "OpenButton"
+openButton.Size = UDim2.new(0, 45, 0, 45)
+
+-- Ở giữa màn hình
+openButton.Position = UDim2.new(0.5, -22, 0.5, -22)
+
+openButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+openButton.BorderSizePixel = 0
+openButton.Text = "O"
+openButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+openButton.TextSize = 20
+openButton.Font = Enum.Font.GothamBold
+openButton.Parent = gui
+
+local openCorner = Instance.new("UICorner")
+openCorner.CornerRadius = UDim.new(0, 10)
+openCorner.Parent = openButton
+
+-- Viền
+local openStroke = Instance.new("UIStroke")
+openStroke.Color = Color3.fromRGB(80, 80, 80)
+openStroke.Thickness = 1
+openStroke.Parent = openButton
+
+-- ========================================
+-- GUI LỚN
+-- ========================================
+
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 165)
-frame.Position = UDim2.new(1, -310, 0, 80)
+frame.Name = "MonitorFrame"
+frame.Size = UDim2.new(0, 250, 0, 100)
+frame.Position = UDim2.new(1, -260, 0, 80)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BorderSizePixel = 0
+frame.Visible = false
 frame.Parent = gui
 
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 10)
 corner.Parent = frame
 
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(60, 60, 60)
+stroke.Thickness = 1
+stroke.Parent = frame
+
 -- ========================================
 -- TITLE
 -- ========================================
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -20, 0, 35)
+title.Name = "Title"
+title.Size = UDim2.new(1, -55, 0, 30)
 title.Position = UDim2.new(0, 10, 0, 5)
 title.BackgroundTransparency = 1
 title.Text = "Roblox Monitor"
 title.TextColor3 = Color3.new(1, 1, 1)
-title.TextSize = 18
+title.TextSize = 17
 title.Font = Enum.Font.GothamBold
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = frame
 
 -- ========================================
--- STATUS
+-- NÚT X
 -- ========================================
 
-local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, -20, 0, 115)
-status.Position = UDim2.new(0, 10, 0, 42)
-status.BackgroundTransparency = 1
-status.TextColor3 = Color3.fromRGB(100, 255, 100)
-status.TextSize = 14
-status.Font = Enum.Font.Gotham
-status.TextWrapped = true
-status.TextXAlignment = Enum.TextXAlignment.Left
-status.TextYAlignment = Enum.TextYAlignment.Top
-status.Text = "Đang khởi động..."
-status.Parent = frame
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 5)
+closeButton.BackgroundTransparency = 1
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(220, 220, 220)
+closeButton.TextSize = 16
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Parent = frame
 
 -- ========================================
--- GỬI DỮ LIỆU
+-- ONLINE
 -- ========================================
 
-local function sendData()
-
-    local coins = getCoins()
-    local gameName = getGameName()
- local data = {
-    username = LocalPlayer.Name,
-    displayName = LocalPlayer.DisplayName,
-    userId = LocalPlayer.UserId,
-
-    map = gameName,
-
-    jobId = game.JobId,
-    placeId = game.PlaceId
-}
-
-    -- ========================================
-    -- CHỈ THÊM COINS NẾU CÓ
-    -- ========================================
-
-    if coins ~= nil then
-        data.coins = coins
-    end
-
-    -- ========================================
-    -- HTTP REQUEST
-    -- ========================================
-
-    local success, response = pcall(function()
-
-        return httpRequest({
-
-            Url = API_URL,
-
-            Method = "POST",
-
-            Headers = {
-                ["Content-Type"] = "application/json"
-            },
-
-            Body = HttpService:JSONEncode(data)
-
-        })
-
-    end)
-
-    -- ========================================
-    -- XỬ LÝ RESPONSE
-    -- ========================================
-
-    if success and response then
-
-        if tonumber(response.StatusCode) == 200 then
-
-            status.TextColor3 = Color3.fromRGB(100, 255, 100)
-
-            if coins ~= nil then
-
-                status.Text =
-                    "🟢 Online\n" ..
-                    "Game: " .. tostring(gameName) .. "\n" ..
-                    "Coins: " .. tostring(coins) .. "\n" ..
-                    "Heartbeat: " .. HEARTBEAT .. "s\n" ..
-                    "API: OK"
-
-            else
-
-                status.Text =
-                    "🟢 Online\n" ..
-                    "Game: " .. tostring(gameName) .. "\n" ..
-                    "Coins: Không có\n" ..
-                    "Heartbeat: " .. HEARTBEAT .. "s\n" ..
-                    "API: OK"
-
-            end
-
-            return true
-
-        else
-
-            status.TextColor3 = Color3.fromRGB(255, 180, 80)
-
-            status.Text =
-                "🟠 API Error\n" ..
-                "Status: " .. tostring(response.StatusCode) .. "\n" ..
-                "Game: " .. tostring(gameName) .. "\n" ..
-                "Coins: " ..
-                (coins ~= nil and tostring(coins) or "Không có")
-
-            return false
-        end
-
-    else
-
-        status.TextColor3 = Color3.fromRGB(255, 80, 80)
-
-        status.Text =
-            "🔴 Request Failed\n" ..
-            "Không thể gửi dữ liệu\n" ..
-            "Game: " .. tostring(gameName)
-
-        return false
-    end
-end
-
--- ========================================
--- GỬI NGAY LẬP TỨC
--- ========================================
-
-sendData()
-
--- ========================================
--- HEARTBEAT
--- ========================================
-
-task.spawn(function()
-
-    while true do
-
-        task.wait(HEARTBEAT)
-
-        sendData()
-
-    end
-
-end)
+local online = I
