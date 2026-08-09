@@ -1,5 +1,5 @@
 local API_URL = "https://roblox-monitor.malocsenpai.workers.dev/"
-local HEARTBEAT = 30 -- gửi lại mỗi 30 giây
+local HEARTBEAT = 300 -- gửi lại mỗi 30 giây
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
