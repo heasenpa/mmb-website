@@ -115,7 +115,7 @@ openButton.Name = "OpenButton"
 openButton.Size = UDim2.new(0, 45, 0, 45)
 
 -- Ở giữa màn hình
-openButton.Position = UDim2.new(0.5, -22, 0.5, -22)
+openButton.Position = UDim2.new(1, -60, 0, 80)
 
 openButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 openButton.BorderSizePixel = 0
