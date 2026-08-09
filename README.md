@@ -67,7 +67,10 @@ local function getCoins()
 
         local text = tostring(amount.Text)
 
+        -- Loại bỏ dấu phẩy
         text = text:gsub(",", "")
+
+        -- Loại bỏ khoảng trắng
         text = text:gsub("%s+", "")
 
         return tonumber(text)
@@ -78,6 +81,7 @@ local function getCoins()
         return result
     end
 
+    -- Game không có Coins
     return nil
 end
 
@@ -96,14 +100,18 @@ pcall(function()
 end)
 
 -- ========================================
--- TẠO GUI
+-- TẠO SCREEN GUI
 -- ========================================
 
 local gui = Instance.new("ScreenGui")
+
 gui.Name = "RobloxMonitor"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
+
+-- Ưu tiên hiển thị trên các GUI khác
 gui.DisplayOrder = 999999
+
 gui.Parent = CoreGui
 
 -- ========================================
@@ -111,28 +119,59 @@ gui.Parent = CoreGui
 -- ========================================
 
 local openButton = Instance.new("TextButton")
+
 openButton.Name = "OpenButton"
+
 openButton.Size = UDim2.new(0, 45, 0, 45)
 
--- Ở giữa màn hình
-openButton.Position = UDim2.new(1, -60, 0, 80)
+-- ========================================
+-- GIỮA CẠNH PHẢI MÀN HÌNH
+-- ========================================
 
-openButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+openButton.Position = UDim2.new(
+    1,
+    -60,
+    0.5,
+    -22
+)
+
+openButton.BackgroundColor3 =
+    Color3.fromRGB(25, 25, 25)
+
 openButton.BorderSizePixel = 0
+
 openButton.Text = "O"
-openButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+openButton.TextColor3 =
+    Color3.fromRGB(255, 255, 255)
+
 openButton.TextSize = 20
-openButton.Font = Enum.Font.GothamBold
+
+openButton.Font =
+    Enum.Font.GothamBold
+
+openButton.AutoButtonColor = true
+
 openButton.Parent = gui
 
+-- Bo góc nút O
+
 local openCorner = Instance.new("UICorner")
-openCorner.CornerRadius = UDim.new(0, 10)
+
+openCorner.CornerRadius =
+    UDim.new(0, 10)
+
 openCorner.Parent = openButton
 
--- Viền
+-- Viền nút O
+
 local openStroke = Instance.new("UIStroke")
-openStroke.Color = Color3.fromRGB(80, 80, 80)
+
+openStroke.Color =
+    Color3.fromRGB(80, 80, 80)
+
 openStroke.Thickness = 1
+
 openStroke.Parent = openButton
 
 -- ========================================
@@ -140,37 +179,89 @@ openStroke.Parent = openButton
 -- ========================================
 
 local frame = Instance.new("Frame")
+
 frame.Name = "MonitorFrame"
-frame.Size = UDim2.new(0, 250, 0, 100)
-frame.Position = UDim2.new(1, -260, 0, 80)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+
+frame.Size = UDim2.new(
+    0,
+    250,
+    0,
+    100
+)
+
+frame.Position = UDim2.new(
+    1,
+    -260,
+    0,
+    80
+)
+
+frame.BackgroundColor3 =
+    Color3.fromRGB(25, 25, 25)
+
 frame.BorderSizePixel = 0
+
 frame.Visible = false
+
 frame.Parent = gui
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
-corner.Parent = frame
+-- Bo góc
 
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(60, 60, 60)
-stroke.Thickness = 1
-stroke.Parent = frame
+local frameCorner = Instance.new("UICorner")
+
+frameCorner.CornerRadius =
+    UDim.new(0, 10)
+
+frameCorner.Parent = frame
+
+-- Viền
+
+local frameStroke = Instance.new("UIStroke")
+
+frameStroke.Color =
+    Color3.fromRGB(60, 60, 60)
+
+frameStroke.Thickness = 1
+
+frameStroke.Parent = frame
 
 -- ========================================
 -- TITLE
 -- ========================================
 
 local title = Instance.new("TextLabel")
+
 title.Name = "Title"
-title.Size = UDim2.new(1, -55, 0, 30)
-title.Position = UDim2.new(0, 10, 0, 5)
+
+title.Size = UDim2.new(
+    1,
+    -55,
+    0,
+    30
+)
+
+title.Position = UDim2.new(
+    0,
+    10,
+    0,
+    5
+)
+
 title.BackgroundTransparency = 1
+
 title.Text = "Roblox Monitor"
-title.TextColor3 = Color3.new(1, 1, 1)
+
+title.TextColor3 =
+    Color3.fromRGB(255, 255, 255)
+
 title.TextSize = 17
-title.Font = Enum.Font.GothamBold
-title.TextXAlignment = Enum.TextXAlignment.Left
+
+title.Font =
+    Enum.Font.GothamBold
+
+title.TextXAlignment =
+    Enum.TextXAlignment.Left
+
 title.Parent = frame
 
 -- ========================================
@@ -178,18 +269,298 @@ title.Parent = frame
 -- ========================================
 
 local closeButton = Instance.new("TextButton")
+
 closeButton.Name = "CloseButton"
-closeButton.Size = UDim2.new(0, 30, 0, 30)
-closeButton.Position = UDim2.new(1, -35, 0, 5)
+
+closeButton.Size = UDim2.new(
+    0,
+    30,
+    0,
+    30
+)
+
+closeButton.Position = UDim2.new(
+    1,
+    -35,
+    0,
+    5
+)
+
 closeButton.BackgroundTransparency = 1
+
 closeButton.Text = "X"
-closeButton.TextColor3 = Color3.fromRGB(220, 220, 220)
+
+closeButton.TextColor3 =
+    Color3.fromRGB(220, 220, 220)
+
 closeButton.TextSize = 16
-closeButton.Font = Enum.Font.GothamBold
+
+closeButton.Font =
+    Enum.Font.GothamBold
+
 closeButton.Parent = frame
 
 -- ========================================
 -- ONLINE
 -- ========================================
 
-local online = I
+local online = Instance.new("TextLabel")
+
+online.Name = "Online"
+
+online.Size = UDim2.new(
+    1,
+    -20,
+    0,
+    25
+)
+
+online.Position = UDim2.new(
+    0,
+    10,
+    0,
+    35
+)
+
+online.BackgroundTransparency = 1
+
+online.Text = "🟢 Online"
+
+online.TextColor3 =
+    Color3.fromRGB(100, 255, 100)
+
+online.TextSize = 15
+
+online.Font =
+    Enum.Font.GothamBold
+
+online.TextXAlignment =
+    Enum.TextXAlignment.Left
+
+online.Parent = frame
+
+-- ========================================
+-- COUNTDOWN
+-- ========================================
+
+local countdown = Instance.new("TextLabel")
+
+countdown.Name = "Countdown"
+
+countdown.Size = UDim2.new(
+    1,
+    -20,
+    0,
+    25
+)
+
+countdown.Position = UDim2.new(
+    0,
+    10,
+    0,
+    62
+)
+
+countdown.BackgroundTransparency = 1
+
+countdown.Text =
+    "Gửi tiếp theo: 05:00"
+
+countdown.TextColor3 =
+    Color3.fromRGB(220, 220, 220)
+
+countdown.TextSize = 14
+
+countdown.Font =
+    Enum.Font.Gotham
+
+countdown.TextXAlignment =
+    Enum.TextXAlignment.Left
+
+countdown.Parent = frame
+
+-- ========================================
+-- MỞ GUI
+-- ========================================
+
+openButton.MouseButton1Click:Connect(function()
+
+    openButton.Visible = false
+
+    frame.Visible = true
+
+end)
+
+-- ========================================
+-- ĐÓNG GUI
+-- ========================================
+
+closeButton.MouseButton1Click:Connect(function()
+
+    frame.Visible = false
+
+    openButton.Visible = true
+
+end)
+
+-- ========================================
+-- FORMAT THỜI GIAN
+-- ========================================
+
+local function formatTime(seconds)
+
+    seconds = math.max(
+        0,
+        math.floor(seconds)
+    )
+
+    local minutes =
+        math.floor(seconds / 60)
+
+    local secs =
+        seconds % 60
+
+    return string.format(
+        "%02d:%02d",
+        minutes,
+        secs
+    )
+end
+
+-- ========================================
+-- GỬI DỮ LIỆU
+-- ========================================
+
+local function sendData()
+
+    local coins = getCoins()
+
+    local gameName = getGameName()
+
+    -- ====================================
+    -- DỮ LIỆU CƠ BẢN
+    -- ====================================
+
+    local data = {
+
+        username = LocalPlayer.Name,
+
+        displayName =
+            LocalPlayer.DisplayName,
+
+        userId =
+            LocalPlayer.UserId,
+
+        -- Giữ "map" để Worker
+        -- nhận đúng dữ liệu
+
+        map = gameName,
+
+        jobId =
+            game.JobId,
+
+        placeId =
+            game.PlaceId
+    }
+
+    -- ====================================
+    -- CHỈ GỬI COINS NẾU CÓ
+    -- ====================================
+
+    if coins ~= nil then
+
+        data.coins = coins
+
+    end
+
+    -- ====================================
+    -- HTTP REQUEST
+    -- ====================================
+
+    local success, response =
+        pcall(function()
+
+            return httpRequest({
+
+                Url = API_URL,
+
+                Method = "POST",
+
+                Headers = {
+
+                    ["Content-Type"] =
+                        "application/json"
+
+                },
+
+                Body =
+                    HttpService:JSONEncode(data)
+
+            })
+
+        end)
+
+    -- ====================================
+    -- KIỂM TRA RESPONSE
+    -- ====================================
+
+    if success and response then
+
+        if tonumber(response.StatusCode) == 200 then
+
+            return true
+
+        end
+
+    end
+
+    return false
+end
+
+-- ========================================
+-- COUNTDOWN + HEARTBEAT
+-- ========================================
+
+task.spawn(function()
+
+    local nextSend =
+        os.time() + HEARTBEAT
+
+    while true do
+
+        local remaining =
+            nextSend - os.time()
+
+        -- =================================
+        -- ĐẾN THỜI GIAN GỬI
+        -- =================================
+
+        if remaining <= 0 then
+
+            -- Gửi dữ liệu
+
+            sendData()
+
+            -- Reset 5 phút
+
+            nextSend =
+                os.time() + HEARTBEAT
+
+            remaining =
+                HEARTBEAT
+
+        end
+
+        -- =================================
+        -- CẬP NHẬT GUI
+        -- =================================
+
+        countdown.Text =
+            "Gửi tiếp theo: "
+            .. formatTime(remaining)
+
+        task.wait(1)
+
+    end
+
+end)
