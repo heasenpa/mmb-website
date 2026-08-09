@@ -1,1 +1,290 @@
+local API_URL = "https://roblox-monitor.malocsenpai.workers.dev/"
+local HEARTBEAT = 300 -- gửi lại mỗi 5 phút
 
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- ========================================
+-- HTTP REQUEST
+-- ========================================
+
+local httpRequest =
+    request
+    or http_request
+    or (syn and syn.request)
+
+if not httpRequest then
+    warn("Executor không hỗ trợ HTTP request!")
+    return
+end
+
+-- ========================================
+-- LẤY TÊN GAME
+-- ========================================
+
+local function getGameName()
+
+    local success, result = pcall(function()
+
+        local info = MarketplaceService:GetProductInfo(game.PlaceId)
+
+        return info.Name
+
+    end)
+
+    if success and result then
+        return result
+    end
+
+    return "Unknown Game"
+end
+
+-- ========================================
+-- LẤY COINS
+-- ========================================
+
+local function getCoins()
+
+    local success, result = pcall(function()
+
+        local playerGui = LocalPlayer:WaitForChild("PlayerGui", 3)
+
+        local crossPlatform = playerGui:WaitForChild("CrossPlatform", 3)
+        local shop = crossPlatform:WaitForChild("Shop", 3)
+        local small = shop:WaitForChild("Small", 3)
+
+        local container1 = small:WaitForChild("Container", 3)
+        local title = container1:WaitForChild("Title", 3)
+        local container2 = title:WaitForChild("Container", 3)
+
+        local coins = container2:WaitForChild("Coins", 3)
+        local container3 = coins:WaitForChild("Container", 3)
+        local amount = container3:WaitForChild("Amount", 3)
+
+        local text = tostring(amount.Text)
+
+        -- Loại bỏ dấu phẩy
+        text = text:gsub(",", "")
+
+        -- Loại bỏ khoảng trắng
+        text = text:gsub("%s+", "")
+
+        return tonumber(text)
+
+    end)
+
+    if success and result ~= nil then
+        return result
+    end
+
+    -- Game không có Coins
+    return nil
+end
+
+-- ========================================
+-- XÓA GUI CŨ
+-- ========================================
+
+pcall(function()
+
+    local old = CoreGui:FindFirstChild("RobloxMonitor")
+
+    if old then
+        old:Destroy()
+    end
+
+end)
+
+-- ========================================
+-- TẠO GUI
+-- ========================================
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "RobloxMonitor"
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 165)
+frame.Position = UDim2.new(1, -310, 0, 80)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = frame
+
+-- ========================================
+-- TITLE
+-- ========================================
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -20, 0, 35)
+title.Position = UDim2.new(0, 10, 0, 5)
+title.BackgroundTransparency = 1
+title.Text = "Roblox Monitor"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextSize = 18
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = frame
+
+-- ========================================
+-- STATUS
+-- ========================================
+
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -20, 0, 115)
+status.Position = UDim2.new(0, 10, 0, 42)
+status.BackgroundTransparency = 1
+status.TextColor3 = Color3.fromRGB(255, 220, 100)
+status.TextSize = 14
+status.Font = Enum.Font.Gotham
+status.TextWrapped = true
+status.TextXAlignment = Enum.TextXAlignment.Left
+status.TextYAlignment = Enum.TextYAlignment.Top
+
+status.Text =
+    "🟡 Waiting\n" ..
+    "Chờ 5 phút trước khi gửi\n" ..
+    "Heartbeat: " .. HEARTBEAT .. "s"
+
+status.Parent = frame
+
+-- ========================================
+-- GỬI DỮ LIỆU
+-- ========================================
+
+local function sendData()
+
+    local coins = getCoins()
+    local gameName = getGameName()
+
+    -- ========================================
+    -- DỮ LIỆU CƠ BẢN
+    -- ========================================
+
+    local data = {
+        username = LocalPlayer.Name,
+        displayName = LocalPlayer.DisplayName,
+        userId = LocalPlayer.UserId,
+
+        -- Giữ nguyên "map" để Worker/dashboard nhận đúng
+        map = gameName,
+
+        jobId = game.JobId,
+        placeId = game.PlaceId
+    }
+
+    -- ========================================
+    -- CHỈ THÊM COINS NẾU GAME CÓ COINS
+    -- ========================================
+
+    if coins ~= nil then
+        data.coins = coins
+    end
+
+    -- ========================================
+    -- HTTP REQUEST
+    -- ========================================
+
+    local success, response = pcall(function()
+
+        return httpRequest({
+
+            Url = API_URL,
+
+            Method = "POST",
+
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+
+            Body = HttpService:JSONEncode(data)
+
+        })
+
+    end)
+
+    -- ========================================
+    -- XỬ LÝ RESPONSE
+    -- ========================================
+
+    if success and response then
+
+        if tonumber(response.StatusCode) == 200 then
+
+            status.TextColor3 = Color3.fromRGB(100, 255, 100)
+
+            if coins ~= nil then
+
+                status.Text =
+                    "🟢 Online\n" ..
+                    "Game: " .. tostring(gameName) .. "\n" ..
+                    "Coins: " .. tostring(coins) .. "\n" ..
+                    "Heartbeat: " .. HEARTBEAT .. "s\n" ..
+                    "API: OK"
+
+            else
+
+                status.Text =
+                    "🟢 Online\n" ..
+                    "Game: " .. tostring(gameName) .. "\n" ..
+                    "Coins: Không có\n" ..
+                    "Heartbeat: " .. HEARTBEAT .. "s\n" ..
+                    "API: OK"
+
+            end
+
+            return true
+
+        else
+
+            status.TextColor3 = Color3.fromRGB(255, 180, 80)
+
+            status.Text =
+                "🟠 API Error\n" ..
+                "Status: " .. tostring(response.StatusCode) .. "\n" ..
+                "Game: " .. tostring(gameName) .. "\n" ..
+                "Coins: " ..
+                (coins ~= nil and tostring(coins) or "Không có")
+
+            return false
+        end
+
+    else
+
+        status.TextColor3 = Color3.fromRGB(255, 80, 80)
+
+        status.Text =
+            "🔴 Request Failed\n" ..
+            "Không thể gửi dữ liệu\n" ..
+            "Game: " .. tostring(gameName)
+
+        return false
+    end
+end
+
+-- ========================================
+-- HEARTBEAT
+-- ========================================
+
+task.spawn(function()
+
+    while true do
+
+        -- Không gửi ngay khi kích hoạt
+        -- Chờ 5 phút trước lần gửi đầu tiên
+        task.wait(HEARTBEAT)
+
+        -- Gửi dữ liệu
+        sendData()
+
+    end
+
+end)
