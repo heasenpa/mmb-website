@@ -67,10 +67,7 @@ local function getCoins()
 
         local text = tostring(amount.Text)
 
-        -- Loại bỏ dấu phẩy
         text = text:gsub(",", "")
-
-        -- Loại bỏ khoảng trắng
         text = text:gsub("%s+", "")
 
         return tonumber(text)
@@ -81,7 +78,6 @@ local function getCoins()
         return result
     end
 
-    -- Game không có Coins
     return nil
 end
 
@@ -100,68 +96,52 @@ pcall(function()
 end)
 
 -- ========================================
--- TẠO GUI
+-- TẠO GUI NHỎ
 -- ========================================
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "RobloxMonitor"
 gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
 gui.Parent = CoreGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 250, 0, 100)
-frame.Position = UDim2.new(1, -260, 0, 80)
+
+-- Ô nhỏ
+frame.Size = UDim2.new(0, 65, 0, 30)
+
+-- Góc phải + chính giữa màn hình
+frame.Position = UDim2.new(1, -70, 0.5, -15)
+
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BackgroundTransparency = 0.15
 frame.BorderSizePixel = 0
 frame.Parent = gui
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
+corner.CornerRadius = UDim.new(0, 6)
 corner.Parent = frame
 
 -- ========================================
--- TITLE
--- ========================================
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -20, 0, 30)
-title.Position = UDim2.new(0, 10, 0, 5)
-title.BackgroundTransparency = 1
-title.Text = "Roblox Monitor"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.TextSize = 17
-title.Font = Enum.Font.GothamBold
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Parent = frame
-
--- ========================================
--- ONLINE
--- ========================================
-
-local online = Instance.new("TextLabel")
-online.Size = UDim2.new(1, -20, 0, 25)
-online.Position = UDim2.new(0, 10, 0, 35)
-online.BackgroundTransparency = 1
-online.Text = "🟢 Online"
-online.TextColor3 = Color3.fromRGB(100, 255, 100)
-online.TextSize = 15
-online.Font = Enum.Font.GothamBold
-online.TextXAlignment = Enum.TextXAlignment.Left
-online.Parent = frame
-
--- ========================================
--- COUNTDOWN
+-- COUNTDOWN TEXT
 -- ========================================
 
 local countdown = Instance.new("TextLabel")
-countdown.Size = UDim2.new(1, -20, 0, 25)
-countdown.Position = UDim2.new(0, 10, 0, 62)
+
+countdown.Size = UDim2.new(1, 0, 1, 0)
+countdown.Position = UDim2.new(0, 0, 0, 0)
+
 countdown.BackgroundTransparency = 1
-countdown.Text = "Gửi tiếp theo: 05:00"
-countdown.TextColor3 = Color3.fromRGB(220, 220, 220)
+
+countdown.Text = "05:00"
+
+countdown.TextColor3 = Color3.fromRGB(255, 255, 255)
 countdown.TextSize = 14
-countdown.Font = Enum.Font.Gotham
-countdown.TextXAlignment = Enum.TextXAlignment.Left
+countdown.Font = Enum.Font.GothamBold
+
+countdown.TextXAlignment = Enum.TextXAlignment.Center
+countdown.TextYAlignment = Enum.TextYAlignment.Center
+
 countdown.Parent = frame
 
 -- ========================================
@@ -187,26 +167,18 @@ local function sendData()
     local coins = getCoins()
     local gameName = getGameName()
 
-    -- ========================================
-    -- DỮ LIỆU CƠ BẢN
-    -- ========================================
-
     local data = {
         username = LocalPlayer.Name,
         displayName = LocalPlayer.DisplayName,
         userId = LocalPlayer.UserId,
 
-        -- Giữ "map" để Worker nhận đúng
         map = gameName,
 
         jobId = game.JobId,
         placeId = game.PlaceId
     }
 
-    -- ========================================
-    -- CHỈ GỬI COINS NẾU CÓ
-    -- ========================================
-
+    -- Chỉ gửi Coins nếu game có Coins
     if coins ~= nil then
         data.coins = coins
     end
@@ -233,7 +205,6 @@ local function sendData()
 
     end)
 
-    -- Không cần hiển thị lỗi trên GUI
     if success and response then
 
         if tonumber(response.StatusCode) == 200 then
@@ -251,28 +222,36 @@ end
 
 task.spawn(function()
 
+    -- Bắt đầu từ 5 phút
     local nextSend = os.time() + HEARTBEAT
 
     while true do
 
+        -- Tính số giây còn lại
         local remaining = nextSend - os.time()
+
+        -- ====================================
+        -- HẾT 5 PHÚT
+        -- ====================================
 
         if remaining <= 0 then
 
-            -- Gửi dữ liệu
+            -- Gửi dữ liệu lên Worker
             sendData()
 
-            -- Reset thời gian
+            -- Reset lại 5 phút
             nextSend = os.time() + HEARTBEAT
 
             remaining = HEARTBEAT
         end
 
-        -- Cập nhật GUI
-        countdown.Text =
-            "Gửi tiếp theo: " ..
-            formatTime(remaining)
+        -- ====================================
+        -- CẬP NHẬT GUI
+        -- ====================================
 
+        countdown.Text = formatTime(remaining)
+
+        -- Đợi đúng khoảng 1 giây
         task.wait(1)
 
     end
