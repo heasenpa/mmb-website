@@ -1,16 +1,14 @@
-```lua
 --========================================================
 -- SERVER HOP GUI
 -- 1-5 PLAYERS
--- Ưu tiên: 2 > 3 > 1 > 4 > 5
--- Không vào server hiện tại
--- Không quay lại server vừa ở
+-- Priority: 2 > 3 > 1 > 4 > 5
 --========================================================
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
+local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -21,11 +19,10 @@ local LocalPlayer = Players.LocalPlayer
 local MIN_PLAYERS = 1
 local MAX_PLAYERS = 5
 
--- Số trang tối đa:
--- 10 trang x tối đa 100 server = khoảng 1000 server
+-- 10 trang x tối đa 100 server
 local MAX_PAGES = 10
 
--- Thứ tự ưu tiên server
+-- Ưu tiên số người
 local PRIORITY = {
     2,
     3,
@@ -35,271 +32,67 @@ local PRIORITY = {
 }
 
 --========================================================
--- SERVER TRƯỚC ĐÓ
--- Lấy từ TeleportData giống cơ chế script farm của bạn
+-- LẤY SERVER TRƯỚC ĐÓ AN TOÀN
 --========================================================
 
-local LastServer = TeleportService:GetLocalPlayerTeleportData()
+local LastServer = {}
 
-if type(LastServer) ~= "table" then
-    LastServer = {}
-end
+pcall(function()
+
+    local data = TeleportService:GetLocalPlayerTeleportData()
+
+    if type(data) == "table" then
+        LastServer = data
+    end
+
+end)
 
 --========================================================
--- SERVER HOP
+-- XÓA GUI CŨ
 --========================================================
 
-local hopping = false
+pcall(function()
 
-local function ServerHop()
+    local old = CoreGui:FindFirstChild("ServerHopGUI")
 
-    if hopping then
-        return
+    if old then
+        old:Destroy()
     end
 
-    hopping = true
-
-    local PlaceId = game.PlaceId
-    local JobId = game.JobId
-
-    Status.Text = "Đang tìm server..."
-    HopButton.Text = "Searching..."
-    HopButton.Active = false
-
-    local allServers = {}
-    local cursor = ""
-
-    --====================================================
-    -- QUÉT SERVER
-    --====================================================
-
-    for page = 1, MAX_PAGES do
-
-        local url =
-            "https://games.roblox.com/v1/games/"
-            .. PlaceId
-            .. "/servers/Public?sortOrder=Asc&limit=100"
-
-        if cursor ~= "" then
-            url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
-        end
-
-        local success, result = pcall(function()
-
-            return HttpService:JSONDecode(
-                game:HttpGet(url)
-            )
-
-        end)
-
-        if not success or not result then
-
-            warn("Không thể lấy danh sách server:", result)
-
-            break
-        end
-
-        if result.data then
-
-            for _, server in ipairs(result.data) do
-
-                local playerCount = server.playing
-
-                if server.id
-                and server.id ~= JobId
-                and server.id ~= LastServer.id
-                and playerCount
-                and playerCount >= MIN_PLAYERS
-                and playerCount <= MAX_PLAYERS then
-
-                    table.insert(allServers, server)
-
-                end
-
-            end
-
-        end
-
-        cursor = result.nextPageCursor or ""
-
-        if cursor == "" then
-            break
-        end
-
-        -- Nghỉ nhẹ giữa các request
-        task.wait(0.15)
-    end
-
-    --====================================================
-    -- KHÔNG CÓ SERVER
-    --====================================================
-
-    if #allServers == 0 then
-
-        warn("Không tìm thấy server 1-5 người.")
-
-        Status.Text = "Không tìm thấy server"
-
-        HopButton.Text = "Server Hop"
-        HopButton.Active = true
-
-        hopping = false
-
-        task.delay(2, function()
-
-            if Status then
-                Status.Text = ""
-            end
-
-        end)
-
-        return
-    end
-
-    --====================================================
-    -- CHIA SERVER THEO SỐ NGƯỜI
-    --====================================================
-
-    local groups = {
-        [1] = {},
-        [2] = {},
-        [3] = {},
-        [4] = {},
-        [5] = {}
-    }
-
-    for _, server in ipairs(allServers) do
-
-        local count = server.playing
-
-        if groups[count] then
-            table.insert(groups[count], server)
-        end
-
-    end
-
-    --====================================================
-    -- CHỌN SERVER THEO PRIORITY
-    --====================================================
-
-    local target = nil
-
-    for _, playerCount in ipairs(PRIORITY) do
-
-        local available = groups[playerCount]
-
-        if available and #available > 0 then
-
-            target = available[
-                math.random(1, #available)
-            ]
-
-            break
-        end
-
-    end
-
-    --====================================================
-    -- KHÔNG CHỌN ĐƯỢC
-    --====================================================
-
-    if not target then
-
-        Status.Text = "Không có server phù hợp"
-
-        HopButton.Text = "Server Hop"
-        HopButton.Active = true
-
-        hopping = false
-
-        return
-    end
-
-    --====================================================
-    -- TELEPORT
-    --====================================================
-
-    Status.Text =
-        "Đang vào server "
-        .. tostring(target.playing)
-        .. " người..."
-
-    HopButton.Text = "Teleporting..."
-
-    task.wait(0.2)
-
-    local success, errorMessage = pcall(function()
-
-        TeleportService:TeleportToPlaceInstance(
-            PlaceId,
-            target.id,
-            LocalPlayer,
-
-            -- Giống cơ chế trong script farm
-            -- Server kế tiếp sẽ biết JobId hiện tại
-            {
-                id = JobId
-            }
-        )
-
-    end)
-
-    if not success then
-
-        warn("Teleport failed:", errorMessage)
-
-        Status.Text = "Teleport thất bại"
-
-        HopButton.Text = "Server Hop"
-        HopButton.Active = true
-
-        hopping = false
-
-        task.delay(2, function()
-
-            if Status then
-                Status.Text = ""
-            end
-
-        end)
-    end
-end
+end)
 
 --========================================================
 -- GUI
 --========================================================
 
-local oldGui = nil
-
-pcall(function()
-    oldGui = game:GetService("CoreGui"):FindFirstChild("ServerHopGUI")
-end)
-
-if oldGui then
-    oldGui:Destroy()
-end
-
 local ScreenGui = Instance.new("ScreenGui")
+
 ScreenGui.Name = "ServerHopGUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 ScreenGui.DisplayOrder = 999999
 
--- Dùng PlayerGui để tương thích mobile tốt hơn
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.Parent = CoreGui
 
 --========================================================
--- NÚT SERVER HOP
+-- BUTTON
 --========================================================
 
-HopButton = Instance.new("TextButton")
+local HopButton = Instance.new("TextButton")
 
 HopButton.Name = "ServerHopButton"
-HopButton.Size = UDim2.new(0, 90, 0, 40)
+
+HopButton.Size = UDim2.new(
+    0,
+    90,
+    0,
+    40
+)
+
 HopButton.Position = UDim2.new(
     1,
-    -100,
+    -105,
     0.5,
     -20
 )
@@ -308,14 +101,20 @@ HopButton.BackgroundColor3 =
     Color3.fromRGB(35, 35, 35)
 
 HopButton.BackgroundTransparency = 0.05
+
 HopButton.BorderSizePixel = 0
 
 HopButton.Text = "Server Hop"
+
 HopButton.TextColor3 =
     Color3.fromRGB(255, 255, 255)
 
 HopButton.TextSize = 13
-HopButton.Font = Enum.Font.GothamBold
+
+HopButton.Font =
+    Enum.Font.GothamBold
+
+HopButton.ZIndex = 100
 
 HopButton.Parent = ScreenGui
 
@@ -328,11 +127,10 @@ ButtonCorner.Parent = HopButton
 
 local ButtonStroke = Instance.new("UIStroke")
 
-ButtonStroke.Thickness = 1.5
+ButtonStroke.Thickness = 2
+
 ButtonStroke.Color =
     Color3.fromRGB(120, 0, 255)
-
-ButtonStroke.Transparency = 0.2
 
 ButtonStroke.Parent = HopButton
 
@@ -340,20 +138,23 @@ ButtonStroke.Parent = HopButton
 -- STATUS
 --========================================================
 
-Status = Instance.new("TextLabel")
+local Status = Instance.new("TextLabel")
 
 Status.Name = "Status"
 
-Status.Size =
-    UDim2.new(0, 220, 0, 24)
+Status.Size = UDim2.new(
+    0,
+    230,
+    0,
+    25
+)
 
-Status.Position =
-    UDim2.new(
-        1,
-        -230,
-        0.5,
-        28
-    )
+Status.Position = UDim2.new(
+    1,
+    -240,
+    0.5,
+    27
+)
 
 Status.BackgroundTransparency = 1
 
@@ -363,21 +164,47 @@ Status.TextColor3 =
     Color3.fromRGB(255, 255, 255)
 
 Status.TextSize = 12
-Status.Font = Enum.Font.Gotham
+
+Status.Font =
+    Enum.Font.Gotham
 
 Status.TextXAlignment =
     Enum.TextXAlignment.Right
 
+Status.ZIndex = 100
+
 Status.Parent = ScreenGui
 
 --========================================================
--- DRAG NÚT
+-- DRAG BUTTON
 --========================================================
 
 local dragging = false
 local dragStart
 local startPos
-local dragInput
+
+local function updateButton(input)
+
+    local delta =
+        input.Position - dragStart
+
+    HopButton.Position = UDim2.new(
+        startPos.X.Scale,
+        startPos.X.Offset + delta.X,
+
+        startPos.Y.Scale,
+        startPos.Y.Offset + delta.Y
+    )
+
+    Status.Position = UDim2.new(
+        HopButton.Position.X.Scale,
+        HopButton.Position.X.Offset - 140,
+
+        HopButton.Position.Y.Scale,
+        HopButton.Position.Y.Offset + 47
+    )
+
+end
 
 HopButton.InputBegan:Connect(function(input)
 
@@ -403,50 +230,309 @@ HopButton.InputBegan:Connect(function(input)
         end)
 
     end
+
 end)
 
-HopButton.InputChanged:Connect(function(input)
+UserInputService.InputChanged:Connect(function(input)
+
+    if not dragging then
+        return
+    end
 
     if input.UserInputType ==
         Enum.UserInputType.MouseMovement
         or input.UserInputType ==
         Enum.UserInputType.Touch then
 
-        dragInput = input
+        updateButton(input)
 
     end
 
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-
-    if input == dragInput and dragging then
-
-        local delta =
-            input.Position - dragStart
-
-        HopButton.Position =
-            UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
-
-        Status.Position =
-            UDim2.new(
-                HopButton.Position.X.Scale,
-                HopButton.Position.X.Offset - 130,
-
-                HopButton.Position.Y.Scale,
-                HopButton.Position.Y.Offset + 47
-            )
-    end
 end)
 
 --========================================================
--- CLICK
+-- GET SERVER LIST
+--========================================================
+
+local function GetServers()
+
+    local servers = {}
+
+    local cursor = ""
+
+    for page = 1, MAX_PAGES do
+
+        local url =
+            "https://games.roblox.com/v1/games/"
+            .. tostring(game.PlaceId)
+            .. "/servers/Public?sortOrder=Asc&limit=100"
+
+        if cursor ~= "" then
+
+            url = url ..
+                "&cursor=" ..
+                HttpService:UrlEncode(cursor)
+
+        end
+
+        local success, response = pcall(function()
+
+            return game:HttpGet(url)
+
+        end)
+
+        if not success then
+
+            warn(
+                "[ServerHop] HttpGet failed:",
+                response
+            )
+
+            break
+
+        end
+
+        local decodeSuccess, data =
+            pcall(function()
+
+                return HttpService:JSONDecode(response)
+
+            end)
+
+        if not decodeSuccess or not data then
+
+            warn(
+                "[ServerHop] JSON decode failed"
+            )
+
+            break
+
+        end
+
+        if data.data then
+
+            for _, server in ipairs(data.data) do
+
+                if server.id
+                and server.id ~= game.JobId
+                and server.id ~= LastServer.id
+                and server.playing
+                and server.playing >= MIN_PLAYERS
+                and server.playing <= MAX_PLAYERS then
+
+                    table.insert(
+                        servers,
+                        server
+                    )
+
+                end
+
+            end
+
+        end
+
+        cursor =
+            data.nextPageCursor or ""
+
+        if cursor == "" then
+            break
+        end
+
+        task.wait(0.15)
+
+    end
+
+    return servers
+
+end
+
+--========================================================
+-- CHOOSE SERVER
+--========================================================
+
+local function ChooseServer(servers)
+
+    if #servers == 0 then
+        return nil
+    end
+
+    local groups = {
+        [1] = {},
+        [2] = {},
+        [3] = {},
+        [4] = {},
+        [5] = {}
+    }
+
+    for _, server in ipairs(servers) do
+
+        local count = server.playing
+
+        if groups[count] then
+
+            table.insert(
+                groups[count],
+                server
+            )
+
+        end
+
+    end
+
+    -- 2 > 3 > 1 > 4 > 5
+
+    for _, count in ipairs(PRIORITY) do
+
+        local group = groups[count]
+
+        if group and #group > 0 then
+
+            return group[
+                math.random(1, #group)
+            ]
+
+        end
+
+    end
+
+    return nil
+
+end
+
+--========================================================
+-- SERVER HOP
+--========================================================
+
+local hopping = false
+
+local function ServerHop()
+
+    if hopping then
+        return
+    end
+
+    hopping = true
+
+    HopButton.Active = false
+
+    HopButton.Text =
+        "Searching..."
+
+    Status.Text =
+        "Finding 1-5 player server..."
+
+    local servers = GetServers()
+
+    if #servers == 0 then
+
+        HopButton.Text =
+            "Server Hop"
+
+        HopButton.Active = true
+
+        Status.Text =
+            "No suitable server"
+
+        hopping = false
+
+        task.delay(2, function()
+
+            if Status then
+                Status.Text = ""
+            end
+
+        end)
+
+        return
+
+    end
+
+    Status.Text =
+        "Found "
+        .. tostring(#servers)
+        .. " servers"
+
+    task.wait(0.2)
+
+    local target =
+        ChooseServer(servers)
+
+    if not target then
+
+        HopButton.Text =
+            "Server Hop"
+
+        HopButton.Active = true
+
+        Status.Text =
+            "No server found"
+
+        hopping = false
+
+        return
+
+    end
+
+    Status.Text =
+        "Joining "
+        .. tostring(target.playing)
+        .. " players..."
+
+    HopButton.Text =
+        "Teleporting..."
+
+    task.wait(0.2)
+
+    --====================================================
+    -- TELEPORT
+    -- Giống cơ chế script farm của bạn
+    --====================================================
+
+    local success, errorMessage =
+        pcall(function()
+
+            TeleportService:TeleportToPlaceInstance(
+                game.PlaceId,
+                target.id,
+                LocalPlayer,
+                {
+                    id = game.JobId
+                }
+            )
+
+        end)
+
+    if not success then
+
+        warn(
+            "[ServerHop] Teleport failed:",
+            errorMessage
+        )
+
+        HopButton.Text =
+            "Server Hop"
+
+        HopButton.Active = true
+
+        Status.Text =
+            "Teleport failed"
+
+        hopping = false
+
+        task.delay(2, function()
+
+            if Status then
+                Status.Text = ""
+            end
+
+        end)
+
+    end
+
+end
+
+--========================================================
+-- BUTTON CLICK
 --========================================================
 
 HopButton.MouseButton1Click:Connect(function()
@@ -455,11 +541,23 @@ HopButton.MouseButton1Click:Connect(function()
 
 end)
 
-print("====================================")
-print(" Server Hop GUI Loaded")
-print(" Search: 1-5 Players")
+--========================================================
+-- READY
+--========================================================
+
+print("==============================")
+print(" Server Hop GUI loaded")
+print(" Range: 1-5 players")
 print(" Priority: 2 > 3 > 1 > 4 > 5")
-print(" Previous server will be skipped")
 print(" Max pages:", MAX_PAGES)
-print("====================================")
-```
+print("==============================")
+
+Status.Text = "Ready"
+
+task.delay(2, function()
+
+    if Status then
+        Status.Text = ""
+    end
+
+end)
