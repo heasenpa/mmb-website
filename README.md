@@ -1,259 +1,388 @@
-local API_URL = "https://roblox-monitor.malocsenpai.workers.dev/"
-local HEARTBEAT = 300 -- 5 phút
+--// Server Hop 1-5 Players
+--// Ưu tiên: 2 người > 3 người > 1 người > 4 người > 5 người
+--// GUI nhỏ + hỗ trợ Mobile + kéo được
 
 local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
-local MarketplaceService = game:GetService("MarketplaceService")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
+local PlaceId = game.PlaceId
+local CurrentJobId = game.JobId
 
--- ========================================
--- HTTP REQUEST
--- ========================================
+--==================================================
+-- CONFIG
+--==================================================
 
-local httpRequest =
-    request
-    or http_request
-    or (syn and syn.request)
+local MIN_PLAYERS = 1
+local MAX_PLAYERS = 5
 
-if not httpRequest then
-    warn("Executor không hỗ trợ HTTP request!")
-    return
+-- Số trang server tối đa muốn quét
+-- 1 trang ~= tối đa 100 server
+local MAX_PAGES = 10
+
+-- Thứ tự ưu tiên
+local PRIORITY = {
+    2,
+    3,
+    1,
+    4,
+    5
+}
+
+--==================================================
+-- GUI
+--==================================================
+
+local oldGui = CoreGui:FindFirstChild("ServerHopGUI")
+
+if oldGui then
+    oldGui:Destroy()
 end
 
--- ========================================
--- LẤY TÊN GAME
--- ========================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ServerHopGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+ScreenGui.Parent = CoreGui
 
-local function getGameName()
+local Button = Instance.new("TextButton")
+Button.Name = "ServerHopButton"
+Button.Size = UDim2.new(0, 90, 0, 40)
+Button.Position = UDim2.new(1, -100, 0.5, -20)
+Button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Button.BackgroundTransparency = 0.08
+Button.BorderSizePixel = 0
+Button.Text = "Server Hop"
+Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+Button.TextSize = 13
+Button.Font = Enum.Font.GothamBold
+Button.AutoButtonColor = true
+Button.Parent = ScreenGui
 
-    local success, result = pcall(function()
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 8)
+Corner.Parent = Button
 
-        local info = MarketplaceService:GetProductInfo(game.PlaceId)
+local Stroke = Instance.new("UIStroke")
+Stroke.Thickness = 1
+Stroke.Transparency = 0.5
+Stroke.Parent = Button
 
-        return info.Name
+local Status = Instance.new("TextLabel")
+Status.Name = "Status"
+Status.Size = UDim2.new(0, 220, 0, 24)
+Status.Position = UDim2.new(1, -230, 0.5, 28)
+Status.BackgroundTransparency = 1
+Status.Text = ""
+Status.TextColor3 = Color3.fromRGB(255, 255, 255)
+Status.TextSize = 12
+Status.Font = Enum.Font.Gotham
+Status.TextXAlignment = Enum.TextXAlignment.Right
+Status.Parent = ScreenGui
 
-    end)
+--==================================================
+-- DRAG MOBILE / PC
+--==================================================
 
-    if success and result then
-        return result
+local dragging = false
+local dragStart
+local startPos
+local dragInput
+
+Button.InputBegan:Connect(function(input)
+
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+
+        dragging = true
+        dragStart = input.Position
+        startPos = Button.Position
+
+        input.Changed:Connect(function()
+
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+
+        end)
+    end
+end)
+
+Button.InputChanged:Connect(function(input)
+
+    if input.UserInputType == Enum.UserInputType.MouseMovement
+    or input.UserInputType == Enum.UserInputType.Touch then
+
+        dragInput = input
+
     end
 
-    return "Unknown Game"
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+
+    if input == dragInput and dragging then
+
+        local delta = input.Position - dragStart
+
+        Button.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+
+        Status.Position = UDim2.new(
+            Button.Position.X.Scale,
+            Button.Position.X.Offset - 130,
+            Button.Position.Y.Scale,
+            Button.Position.Y.Offset + 47
+        )
+
+    end
+
+end)
+
+--==================================================
+-- GET SERVERS
+--==================================================
+
+local function GetServers()
+
+    local servers = {}
+    local cursor = ""
+
+    for page = 1, MAX_PAGES do
+
+        local url =
+            "https://games.roblox.com/v1/games/"
+            .. PlaceId
+            .. "/servers/Public?sortOrder=Asc&limit=100"
+
+        if cursor ~= "" then
+            url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
+        end
+
+        local success, result = pcall(function()
+            return game:HttpGet(url)
+        end)
+
+        if not success then
+            warn("Server API Error:", result)
+            break
+        end
+
+        local data
+
+        local decodeSuccess = pcall(function()
+            data = HttpService:JSONDecode(result)
+        end)
+
+        if not decodeSuccess or not data then
+            warn("Failed to decode server data")
+            break
+        end
+
+        if data.data then
+
+            for _, server in ipairs(data.data) do
+
+                if server.id
+                and server.id ~= CurrentJobId
+                and server.playing
+                and server.maxPlayers
+                and server.playing >= MIN_PLAYERS
+                and server.playing <= MAX_PLAYERS then
+
+                    table.insert(servers, server)
+
+                end
+
+            end
+
+        end
+
+        cursor = data.nextPageCursor or ""
+
+        if cursor == "" then
+            break
+        end
+
+        -- Nghỉ nhẹ giữa các request
+        task.wait(0.15)
+    end
+
+    return servers
 end
 
--- ========================================
--- LẤY COINS
--- ========================================
+--==================================================
+-- CHOOSE BEST SERVER
+--==================================================
 
-local function getCoins()
+local function ChooseServer(servers)
 
-    local success, result = pcall(function()
+    if #servers == 0 then
+        return nil
+    end
 
-        local playerGui = LocalPlayer:WaitForChild("PlayerGui", 3)
+    -- Tạo nhóm theo số người
+    local groups = {
+        [1] = {},
+        [2] = {},
+        [3] = {},
+        [4] = {},
+        [5] = {}
+    }
 
-        local crossPlatform = playerGui:WaitForChild("CrossPlatform", 3)
-        local shop = crossPlatform:WaitForChild("Shop", 3)
-        local small = shop:WaitForChild("Small", 3)
+    for _, server in ipairs(servers) do
 
-        local container1 = small:WaitForChild("Container", 3)
-        local title = container1:WaitForChild("Title", 3)
-        local container2 = title:WaitForChild("Container", 3)
+        local players = server.playing
 
-        local coins = container2:WaitForChild("Coins", 3)
-        local container3 = coins:WaitForChild("Container", 3)
-        local amount = container3:WaitForChild("Amount", 3)
+        if groups[players] then
+            table.insert(groups[players], server)
+        end
 
-        local text = tostring(amount.Text)
+    end
 
-        text = text:gsub(",", "")
-        text = text:gsub("%s+", "")
+    -- Ưu tiên theo:
+    -- 2 người
+    -- 3 người
+    -- 1 người
+    -- 4 người
+    -- 5 người
 
-        return tonumber(text)
+    for _, playerCount in ipairs(PRIORITY) do
 
-    end)
+        local list = groups[playerCount]
 
-    if success and result ~= nil then
-        return result
+        if #list > 0 then
+
+            return list[
+                math.random(1, #list)
+            ]
+
+        end
+
     end
 
     return nil
 end
 
--- ========================================
--- XÓA GUI CŨ
--- ========================================
+--==================================================
+-- SERVER HOP
+--==================================================
 
-pcall(function()
+local hopping = false
 
-    local old = CoreGui:FindFirstChild("RobloxMonitor")
+local function ServerHop()
 
-    if old then
-        old:Destroy()
+    if hopping then
+        return
     end
 
-end)
+    hopping = true
 
--- ========================================
--- TẠO GUI NHỎ
--- ========================================
+    Button.Active = false
+    Button.AutoButtonColor = false
+    Button.Text = "Searching..."
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "RobloxMonitor"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.Parent = CoreGui
+    Status.Text = "Finding 1-5 player server..."
 
-local frame = Instance.new("Frame")
+    local servers = GetServers()
 
--- Ô nhỏ
-frame.Size = UDim2.new(0, 65, 0, 30)
+    if #servers == 0 then
 
--- Góc phải + chính giữa màn hình
-frame.Position = UDim2.new(1, -70, 0.5, -15)
+        Button.Text = "Server Hop"
+        Button.Active = true
+        Button.AutoButtonColor = true
 
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-frame.BackgroundTransparency = 0.15
-frame.BorderSizePixel = 0
-frame.Parent = gui
+        Status.Text = "No server found"
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 6)
-corner.Parent = frame
+        task.delay(2, function()
 
--- ========================================
--- COUNTDOWN TEXT
--- ========================================
+            if Status then
+                Status.Text = ""
+            end
 
-local countdown = Instance.new("TextLabel")
+        end)
 
-countdown.Size = UDim2.new(1, 0, 1, 0)
-countdown.Position = UDim2.new(0, 0, 0, 0)
-
-countdown.BackgroundTransparency = 1
-
-countdown.Text = "05:00"
-
-countdown.TextColor3 = Color3.fromRGB(255, 255, 255)
-countdown.TextSize = 14
-countdown.Font = Enum.Font.GothamBold
-
-countdown.TextXAlignment = Enum.TextXAlignment.Center
-countdown.TextYAlignment = Enum.TextYAlignment.Center
-
-countdown.Parent = frame
-
--- ========================================
--- FORMAT THỜI GIAN
--- ========================================
-
-local function formatTime(seconds)
-
-    seconds = math.max(0, math.floor(seconds))
-
-    local minutes = math.floor(seconds / 60)
-    local secs = seconds % 60
-
-    return string.format("%02d:%02d", minutes, secs)
-end
-
--- ========================================
--- GỬI DỮ LIỆU
--- ========================================
-
-local function sendData()
-
-    local coins = getCoins()
-    local gameName = getGameName()
-
-    local data = {
-        username = LocalPlayer.Name,
-        displayName = LocalPlayer.DisplayName,
-        userId = LocalPlayer.UserId,
-
-        map = gameName,
-
-        jobId = game.JobId,
-        placeId = game.PlaceId
-    }
-
-    -- Chỉ gửi Coins nếu game có Coins
-    if coins ~= nil then
-        data.coins = coins
+        hopping = false
+        return
     end
 
-    -- ========================================
-    -- HTTP REQUEST
-    -- ========================================
+    Status.Text =
+        "Found "
+        .. tostring(#servers)
+        .. " suitable servers"
 
-    local success, response = pcall(function()
+    task.wait(0.2)
 
-        return httpRequest({
+    local target = ChooseServer(servers)
 
-            Url = API_URL,
+    if not target then
 
-            Method = "POST",
+        Button.Text = "Server Hop"
+        Button.Active = true
+        Button.AutoButtonColor = true
 
-            Headers = {
-                ["Content-Type"] = "application/json"
-            },
+        Status.Text = "No suitable server"
 
-            Body = HttpService:JSONEncode(data)
+        hopping = false
+        return
+    end
 
-        })
+    Status.Text =
+        "Joining: "
+        .. tostring(target.playing)
+        .. " players"
+
+    Button.Text = "Teleporting..."
+
+    task.wait(0.3)
+
+    local success, errorMessage = pcall(function()
+
+        TeleportService:TeleportToPlaceInstance(
+            PlaceId,
+            target.id,
+            LocalPlayer
+        )
 
     end)
 
-    if success and response then
+    if not success then
 
-        if tonumber(response.StatusCode) == 200 then
-            return true
-        end
+        warn("Teleport failed:", errorMessage)
 
+        Button.Text = "Server Hop"
+        Button.Active = true
+        Button.AutoButtonColor = true
+
+        Status.Text = "Teleport failed"
+
+        task.delay(2, function()
+
+            if Status then
+                Status.Text = ""
+            end
+
+        end)
+
+        hopping = false
     end
-
-    return false
 end
 
--- ========================================
--- COUNTDOWN + HEARTBEAT
--- ========================================
+--==================================================
+-- BUTTON
+--==================================================
 
-task.spawn(function()
-
-    -- Bắt đầu từ 5 phút
-    local nextSend = os.time() + HEARTBEAT
-
-    while true do
-
-        -- Tính số giây còn lại
-        local remaining = nextSend - os.time()
-
-        -- ====================================
-        -- HẾT 5 PHÚT
-        -- ====================================
-
-        if remaining <= 0 then
-
-            -- Gửi dữ liệu lên Worker
-            sendData()
-
-            -- Reset lại 5 phút
-            nextSend = os.time() + HEARTBEAT
-
-            remaining = HEARTBEAT
-        end
-
-        -- ====================================
-        -- CẬP NHẬT GUI
-        -- ====================================
-
-        countdown.Text = formatTime(remaining)
-
-        -- Đợi đúng khoảng 1 giây
-        task.wait(1)
-
-    end
-
+Button.MouseButton1Click:Connect(function()
+    ServerHop()
 end)
+
+print("Server Hop 1-5 loaded")
+print("Priority: 2 > 3 > 1 > 4 > 5")
