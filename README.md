@@ -67,10 +67,7 @@ local function getCoins()
 
         local text = tostring(amount.Text)
 
-        -- Loại bỏ dấu phẩy
         text = text:gsub(",", "")
-
-        -- Loại bỏ khoảng trắng
         text = text:gsub("%s+", "")
 
         return tonumber(text)
@@ -81,7 +78,6 @@ local function getCoins()
         return result
     end
 
-    -- Game không có Coins
     return nil
 end
 
@@ -100,308 +96,53 @@ pcall(function()
 end)
 
 -- ========================================
--- TẠO SCREEN GUI
+-- TẠO GUI NHỎ
 -- ========================================
 
 local gui = Instance.new("ScreenGui")
-
 gui.Name = "RobloxMonitor"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
-
--- Ưu tiên hiển thị trên các GUI khác
-gui.DisplayOrder = 999999
-
 gui.Parent = CoreGui
-
--- ========================================
--- NÚT O NHỎ
--- ========================================
-
-local openButton = Instance.new("TextButton")
-
-openButton.Name = "OpenButton"
-
-openButton.Size = UDim2.new(0, 45, 0, 45)
-
--- ========================================
--- GIỮA CẠNH PHẢI MÀN HÌNH
--- ========================================
-
-openButton.Position = UDim2.new(
-    1,
-    -60,
-    0.5,
-    -22
-)
-
-openButton.BackgroundColor3 =
-    Color3.fromRGB(25, 25, 25)
-
-openButton.BorderSizePixel = 0
-
-openButton.Text = "O"
-
-openButton.TextColor3 =
-    Color3.fromRGB(255, 255, 255)
-
-openButton.TextSize = 20
-
-openButton.Font =
-    Enum.Font.GothamBold
-
-openButton.AutoButtonColor = true
-
-openButton.Parent = gui
-
--- Bo góc nút O
-
-local openCorner = Instance.new("UICorner")
-
-openCorner.CornerRadius =
-    UDim.new(0, 10)
-
-openCorner.Parent = openButton
-
--- Viền nút O
-
-local openStroke = Instance.new("UIStroke")
-
-openStroke.Color =
-    Color3.fromRGB(80, 80, 80)
-
-openStroke.Thickness = 1
-
-openStroke.Parent = openButton
-
--- ========================================
--- GUI LỚN
--- ========================================
 
 local frame = Instance.new("Frame")
 
-frame.Name = "MonitorFrame"
+-- Ô nhỏ
+frame.Size = UDim2.new(0, 65, 0, 30)
 
-frame.Size = UDim2.new(
-    0,
-    250,
-    0,
-    100
-)
+-- Góc phải + chính giữa màn hình
+frame.Position = UDim2.new(1, -70, 0.5, -15)
 
-frame.Position = UDim2.new(
-    1,
-    -260,
-    0,
-    80
-)
-
-frame.BackgroundColor3 =
-    Color3.fromRGB(25, 25, 25)
-
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BackgroundTransparency = 0.15
 frame.BorderSizePixel = 0
-
-frame.Visible = false
-
 frame.Parent = gui
 
--- Bo góc
-
-local frameCorner = Instance.new("UICorner")
-
-frameCorner.CornerRadius =
-    UDim.new(0, 10)
-
-frameCorner.Parent = frame
-
--- Viền
-
-local frameStroke = Instance.new("UIStroke")
-
-frameStroke.Color =
-    Color3.fromRGB(60, 60, 60)
-
-frameStroke.Thickness = 1
-
-frameStroke.Parent = frame
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 6)
+corner.Parent = frame
 
 -- ========================================
--- TITLE
--- ========================================
-
-local title = Instance.new("TextLabel")
-
-title.Name = "Title"
-
-title.Size = UDim2.new(
-    1,
-    -55,
-    0,
-    30
-)
-
-title.Position = UDim2.new(
-    0,
-    10,
-    0,
-    5
-)
-
-title.BackgroundTransparency = 1
-
-title.Text = "Roblox Monitor"
-
-title.TextColor3 =
-    Color3.fromRGB(255, 255, 255)
-
-title.TextSize = 17
-
-title.Font =
-    Enum.Font.GothamBold
-
-title.TextXAlignment =
-    Enum.TextXAlignment.Left
-
-title.Parent = frame
-
--- ========================================
--- NÚT X
--- ========================================
-
-local closeButton = Instance.new("TextButton")
-
-closeButton.Name = "CloseButton"
-
-closeButton.Size = UDim2.new(
-    0,
-    30,
-    0,
-    30
-)
-
-closeButton.Position = UDim2.new(
-    1,
-    -35,
-    0,
-    5
-)
-
-closeButton.BackgroundTransparency = 1
-
-closeButton.Text = "X"
-
-closeButton.TextColor3 =
-    Color3.fromRGB(220, 220, 220)
-
-closeButton.TextSize = 16
-
-closeButton.Font =
-    Enum.Font.GothamBold
-
-closeButton.Parent = frame
-
--- ========================================
--- ONLINE
--- ========================================
-
-local online = Instance.new("TextLabel")
-
-online.Name = "Online"
-
-online.Size = UDim2.new(
-    1,
-    -20,
-    0,
-    25
-)
-
-online.Position = UDim2.new(
-    0,
-    10,
-    0,
-    35
-)
-
-online.BackgroundTransparency = 1
-
-online.Text = "🟢 Online"
-
-online.TextColor3 =
-    Color3.fromRGB(100, 255, 100)
-
-online.TextSize = 15
-
-online.Font =
-    Enum.Font.GothamBold
-
-online.TextXAlignment =
-    Enum.TextXAlignment.Left
-
-online.Parent = frame
-
--- ========================================
--- COUNTDOWN
+-- COUNTDOWN TEXT
 -- ========================================
 
 local countdown = Instance.new("TextLabel")
 
-countdown.Name = "Countdown"
-
-countdown.Size = UDim2.new(
-    1,
-    -20,
-    0,
-    25
-)
-
-countdown.Position = UDim2.new(
-    0,
-    10,
-    0,
-    62
-)
+countdown.Size = UDim2.new(1, 0, 1, 0)
+countdown.Position = UDim2.new(0, 0, 0, 0)
 
 countdown.BackgroundTransparency = 1
 
-countdown.Text =
-    "Gửi tiếp theo: 05:00"
+countdown.Text = "05:00"
 
-countdown.TextColor3 =
-    Color3.fromRGB(220, 220, 220)
-
+countdown.TextColor3 = Color3.fromRGB(255, 255, 255)
 countdown.TextSize = 14
+countdown.Font = Enum.Font.GothamBold
 
-countdown.Font =
-    Enum.Font.Gotham
-
-countdown.TextXAlignment =
-    Enum.TextXAlignment.Left
+countdown.TextXAlignment = Enum.TextXAlignment.Center
+countdown.TextYAlignment = Enum.TextYAlignment.Center
 
 countdown.Parent = frame
-
--- ========================================
--- MỞ GUI
--- ========================================
-
-openButton.MouseButton1Click:Connect(function()
-
-    openButton.Visible = false
-
-    frame.Visible = true
-
-end)
-
--- ========================================
--- ĐÓNG GUI
--- ========================================
-
-closeButton.MouseButton1Click:Connect(function()
-
-    frame.Visible = false
-
-    openButton.Visible = true
-
-end)
 
 -- ========================================
 -- FORMAT THỜI GIAN
@@ -409,22 +150,12 @@ end)
 
 local function formatTime(seconds)
 
-    seconds = math.max(
-        0,
-        math.floor(seconds)
-    )
+    seconds = math.max(0, math.floor(seconds))
 
-    local minutes =
-        math.floor(seconds / 60)
+    local minutes = math.floor(seconds / 60)
+    local secs = seconds % 60
 
-    local secs =
-        seconds % 60
-
-    return string.format(
-        "%02d:%02d",
-        minutes,
-        secs
-    )
+    return string.format("%02d:%02d", minutes, secs)
 end
 
 -- ========================================
@@ -434,82 +165,50 @@ end
 local function sendData()
 
     local coins = getCoins()
-
     local gameName = getGameName()
 
-    -- ====================================
-    -- DỮ LIỆU CƠ BẢN
-    -- ====================================
-
     local data = {
-
         username = LocalPlayer.Name,
-
-        displayName =
-            LocalPlayer.DisplayName,
-
-        userId =
-            LocalPlayer.UserId,
-
-        -- Giữ "map" để Worker
-        -- nhận đúng dữ liệu
+        displayName = LocalPlayer.DisplayName,
+        userId = LocalPlayer.UserId,
 
         map = gameName,
 
-        jobId =
-            game.JobId,
-
-        placeId =
-            game.PlaceId
+        jobId = game.JobId,
+        placeId = game.PlaceId
     }
 
-    -- ====================================
-    -- CHỈ GỬI COINS NẾU CÓ
-    -- ====================================
-
+    -- Chỉ gửi Coins nếu game có Coins
     if coins ~= nil then
-
         data.coins = coins
-
     end
 
-    -- ====================================
+    -- ========================================
     -- HTTP REQUEST
-    -- ====================================
+    -- ========================================
 
-    local success, response =
-        pcall(function()
+    local success, response = pcall(function()
 
-            return httpRequest({
+        return httpRequest({
 
-                Url = API_URL,
+            Url = API_URL,
 
-                Method = "POST",
+            Method = "POST",
 
-                Headers = {
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
 
-                    ["Content-Type"] =
-                        "application/json"
+            Body = HttpService:JSONEncode(data)
 
-                },
+        })
 
-                Body =
-                    HttpService:JSONEncode(data)
-
-            })
-
-        end)
-
-    -- ====================================
-    -- KIỂM TRA RESPONSE
-    -- ====================================
+    end)
 
     if success and response then
 
         if tonumber(response.StatusCode) == 200 then
-
             return true
-
         end
 
     end
@@ -523,42 +222,36 @@ end
 
 task.spawn(function()
 
-    local nextSend =
-        os.time() + HEARTBEAT
+    -- Bắt đầu từ 5 phút
+    local nextSend = os.time() + HEARTBEAT
 
     while true do
 
-        local remaining =
-            nextSend - os.time()
+        -- Tính số giây còn lại
+        local remaining = nextSend - os.time()
 
-        -- =================================
-        -- ĐẾN THỜI GIAN GỬI
-        -- =================================
+        -- ====================================
+        -- HẾT 5 PHÚT
+        -- ====================================
 
         if remaining <= 0 then
 
-            -- Gửi dữ liệu
-
+            -- Gửi dữ liệu lên Worker
             sendData()
 
-            -- Reset 5 phút
+            -- Reset lại 5 phút
+            nextSend = os.time() + HEARTBEAT
 
-            nextSend =
-                os.time() + HEARTBEAT
-
-            remaining =
-                HEARTBEAT
-
+            remaining = HEARTBEAT
         end
 
-        -- =================================
+        -- ====================================
         -- CẬP NHẬT GUI
-        -- =================================
+        -- ====================================
 
-        countdown.Text =
-            "Gửi tiếp theo: "
-            .. formatTime(remaining)
+        countdown.Text = formatTime(remaining)
 
+        -- Đợi đúng khoảng 1 giây
         task.wait(1)
 
     end
