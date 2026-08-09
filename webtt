@@ -1,5 +1,5 @@
 local API_URL = "https://roblox-monitor.malocsenpai.workers.dev/"
-local HEARTBEAT = 300 -- gửi lại mỗi 5 phút
+local HEARTBEAT = 300 -- 5 phút
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -109,8 +109,8 @@ gui.ResetOnSpawn = false
 gui.Parent = CoreGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 165)
-frame.Position = UDim2.new(1, -310, 0, 80)
+frame.Size = UDim2.new(0, 250, 0, 100)
+frame.Position = UDim2.new(1, -260, 0, 80)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BorderSizePixel = 0
 frame.Parent = gui
@@ -124,37 +124,59 @@ corner.Parent = frame
 -- ========================================
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -20, 0, 35)
+title.Size = UDim2.new(1, -20, 0, 30)
 title.Position = UDim2.new(0, 10, 0, 5)
 title.BackgroundTransparency = 1
 title.Text = "Roblox Monitor"
 title.TextColor3 = Color3.new(1, 1, 1)
-title.TextSize = 18
+title.TextSize = 17
 title.Font = Enum.Font.GothamBold
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = frame
 
 -- ========================================
--- STATUS
+-- ONLINE
 -- ========================================
 
-local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, -20, 0, 115)
-status.Position = UDim2.new(0, 10, 0, 42)
-status.BackgroundTransparency = 1
-status.TextColor3 = Color3.fromRGB(255, 220, 100)
-status.TextSize = 14
-status.Font = Enum.Font.Gotham
-status.TextWrapped = true
-status.TextXAlignment = Enum.TextXAlignment.Left
-status.TextYAlignment = Enum.TextYAlignment.Top
+local online = Instance.new("TextLabel")
+online.Size = UDim2.new(1, -20, 0, 25)
+online.Position = UDim2.new(0, 10, 0, 35)
+online.BackgroundTransparency = 1
+online.Text = "🟢 Online"
+online.TextColor3 = Color3.fromRGB(100, 255, 100)
+online.TextSize = 15
+online.Font = Enum.Font.GothamBold
+online.TextXAlignment = Enum.TextXAlignment.Left
+online.Parent = frame
 
-status.Text =
-    "🟡 Waiting\n" ..
-    "Chờ 5 phút trước khi gửi\n" ..
-    "Heartbeat: " .. HEARTBEAT .. "s"
+-- ========================================
+-- COUNTDOWN
+-- ========================================
 
-status.Parent = frame
+local countdown = Instance.new("TextLabel")
+countdown.Size = UDim2.new(1, -20, 0, 25)
+countdown.Position = UDim2.new(0, 10, 0, 62)
+countdown.BackgroundTransparency = 1
+countdown.Text = "Gửi tiếp theo: 05:00"
+countdown.TextColor3 = Color3.fromRGB(220, 220, 220)
+countdown.TextSize = 14
+countdown.Font = Enum.Font.Gotham
+countdown.TextXAlignment = Enum.TextXAlignment.Left
+countdown.Parent = frame
+
+-- ========================================
+-- FORMAT THỜI GIAN
+-- ========================================
+
+local function formatTime(seconds)
+
+    seconds = math.max(0, math.floor(seconds))
+
+    local minutes = math.floor(seconds / 60)
+    local secs = seconds % 60
+
+    return string.format("%02d:%02d", minutes, secs)
+end
 
 -- ========================================
 -- GỬI DỮ LIỆU
@@ -174,7 +196,7 @@ local function sendData()
         displayName = LocalPlayer.DisplayName,
         userId = LocalPlayer.UserId,
 
-        -- Giữ nguyên "map" để Worker/dashboard nhận đúng
+        -- Giữ "map" để Worker nhận đúng
         map = gameName,
 
         jobId = game.JobId,
@@ -182,7 +204,7 @@ local function sendData()
     }
 
     -- ========================================
-    -- CHỈ THÊM COINS NẾU GAME CÓ COINS
+    -- CHỈ GỬI COINS NẾU CÓ
     -- ========================================
 
     if coins ~= nil then
@@ -211,79 +233,47 @@ local function sendData()
 
     end)
 
-    -- ========================================
-    -- XỬ LÝ RESPONSE
-    -- ========================================
-
+    -- Không cần hiển thị lỗi trên GUI
     if success and response then
 
         if tonumber(response.StatusCode) == 200 then
-
-            status.TextColor3 = Color3.fromRGB(100, 255, 100)
-
-            if coins ~= nil then
-
-                status.Text =
-                    "🟢 Online\n" ..
-                    "Game: " .. tostring(gameName) .. "\n" ..
-                    "Coins: " .. tostring(coins) .. "\n" ..
-                    "Heartbeat: " .. HEARTBEAT .. "s\n" ..
-                    "API: OK"
-
-            else
-
-                status.Text =
-                    "🟢 Online\n" ..
-                    "Game: " .. tostring(gameName) .. "\n" ..
-                    "Coins: Không có\n" ..
-                    "Heartbeat: " .. HEARTBEAT .. "s\n" ..
-                    "API: OK"
-
-            end
-
             return true
-
-        else
-
-            status.TextColor3 = Color3.fromRGB(255, 180, 80)
-
-            status.Text =
-                "🟠 API Error\n" ..
-                "Status: " .. tostring(response.StatusCode) .. "\n" ..
-                "Game: " .. tostring(gameName) .. "\n" ..
-                "Coins: " ..
-                (coins ~= nil and tostring(coins) or "Không có")
-
-            return false
         end
 
-    else
-
-        status.TextColor3 = Color3.fromRGB(255, 80, 80)
-
-        status.Text =
-            "🔴 Request Failed\n" ..
-            "Không thể gửi dữ liệu\n" ..
-            "Game: " .. tostring(gameName)
-
-        return false
     end
+
+    return false
 end
 
 -- ========================================
--- HEARTBEAT
+-- COUNTDOWN + HEARTBEAT
 -- ========================================
 
 task.spawn(function()
 
+    local nextSend = os.time() + HEARTBEAT
+
     while true do
 
-        -- Không gửi ngay khi kích hoạt
-        -- Chờ 5 phút trước lần gửi đầu tiên
-        task.wait(HEARTBEAT)
+        local remaining = nextSend - os.time()
 
-        -- Gửi dữ liệu
-        sendData()
+        if remaining <= 0 then
+
+            -- Gửi dữ liệu
+            sendData()
+
+            -- Reset thời gian
+            nextSend = os.time() + HEARTBEAT
+
+            remaining = HEARTBEAT
+        end
+
+        -- Cập nhật GUI
+        countdown.Text =
+            "Gửi tiếp theo: " ..
+            formatTime(remaining)
+
+        task.wait(1)
 
     end
 
