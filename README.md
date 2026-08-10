@@ -1,10 +1,10 @@
 --========================================================
--- SERVER HOP GUI - RETRY VERSION
+-- SERVER HOP GUI - DEBUG / SMART VERSION
 --========================================================
--- 1-5 players
--- Priority: 2 > 3 > 1 > 4 > 5
--- Tìm nhiều server và thử lần lượt
--- Bỏ server hiện tại + server trước đó
+-- Server 1-5 người
+-- Ưu tiên: 2 > 3 > 1 > 4 > 5
+-- Quét rộng nhưng dừng sớm khi đủ server
+-- Có DEBUG trên GUI
 --========================================================
 
 local Players = game:GetService("Players")
@@ -22,14 +22,18 @@ local LocalPlayer = Players.LocalPlayer
 local MIN_PLAYERS = 1
 local MAX_PLAYERS = 5
 
--- Tối đa quét 10 trang
--- ~1000 server
-local MAX_PAGES = 10
+-- Tối đa 20 trang
+-- 20 x 100 = khoảng 2000 server
+local MAX_PAGES = 20
 
--- Tối đa thử 20 server
-local MAX_ATTEMPTS = 20
+-- Khi tìm được số này server phù hợp thì dừng quét
+-- Không cần quét đủ 2000 nếu đã có nhiều server tốt
+local TARGET_SERVERS = 30
 
--- Thứ tự ưu tiên
+-- Số server tối đa sẽ thử teleport
+local MAX_ATTEMPTS = 10
+
+-- Ưu tiên
 local PRIORITY = {
     2,
     3,
@@ -46,26 +50,28 @@ local LastServer = {}
 
 pcall(function()
 
-    local data =
-        TeleportService:GetLocalPlayerTeleportData()
+    local data = TeleportService:GetLocalPlayerTeleportData()
 
     if type(data) == "table" then
-        LastServer = data
+
+        if type(data.id) == "string" then
+            LastServer = data
+        end
+
     end
 
 end)
 
 --========================================================
--- REMOVE OLD GUI
+-- XÓA GUI CŨ
 --========================================================
 
 pcall(function()
 
-    local old =
-        CoreGui:FindFirstChild("ServerHopGUI")
+    local oldGui = CoreGui:FindFirstChild("ServerHopGUI")
 
-    if old then
-        old:Destroy()
+    if oldGui then
+        oldGui:Destroy()
     end
 
 end)
@@ -92,11 +98,19 @@ local HopButton = Instance.new("TextButton")
 
 HopButton.Name = "ServerHopButton"
 
-HopButton.Size =
-    UDim2.new(0, 90, 0, 40)
+HopButton.Size = UDim2.new(
+    0,
+    90,
+    0,
+    40
+)
 
-HopButton.Position =
-    UDim2.new(1, -105, 0.5, -20)
+HopButton.Position = UDim2.new(
+    1,
+    -105,
+    0.5,
+    -20
+)
 
 HopButton.BackgroundColor3 =
     Color3.fromRGB(35, 35, 35)
@@ -119,16 +133,14 @@ HopButton.ZIndex = 100
 
 HopButton.Parent = ScreenGui
 
-local ButtonCorner =
-    Instance.new("UICorner")
+local ButtonCorner = Instance.new("UICorner")
 
 ButtonCorner.CornerRadius =
     UDim.new(0, 8)
 
 ButtonCorner.Parent = HopButton
 
-local ButtonStroke =
-    Instance.new("UIStroke")
+local ButtonStroke = Instance.new("UIStroke")
 
 ButtonStroke.Thickness = 2
 
@@ -145,11 +157,19 @@ local Status = Instance.new("TextLabel")
 
 Status.Name = "Status"
 
-Status.Size =
-    UDim2.new(0, 250, 0, 25)
+Status.Size = UDim2.new(
+    0,
+    280,
+    0,
+    25
+)
 
-Status.Position =
-    UDim2.new(1, -260, 0.5, 27)
+Status.Position = UDim2.new(
+    1,
+    -290,
+    0.5,
+    27
+)
 
 Status.BackgroundTransparency = 1
 
@@ -177,31 +197,6 @@ Status.Parent = ScreenGui
 local dragging = false
 local dragStart
 local startPos
-
-local function updateButton(input)
-
-    local delta =
-        input.Position - dragStart
-
-    HopButton.Position =
-        UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-
-    Status.Position =
-        UDim2.new(
-            HopButton.Position.X.Scale,
-            HopButton.Position.X.Offset - 160,
-
-            HopButton.Position.Y.Scale,
-            HopButton.Position.Y.Offset + 47
-        )
-
-end
 
 HopButton.InputBegan:Connect(function(input)
 
@@ -241,23 +236,52 @@ UserInputService.InputChanged:Connect(function(input)
         or input.UserInputType ==
         Enum.UserInputType.Touch then
 
-        updateButton(input)
+        local delta =
+            input.Position - dragStart
+
+        HopButton.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+
+        Status.Position = UDim2.new(
+            HopButton.Position.X.Scale,
+            HopButton.Position.X.Offset - 190,
+
+            HopButton.Position.Y.Scale,
+            HopButton.Position.Y.Offset + 47
+        )
 
     end
 
 end)
 
 --========================================================
--- GET SERVER LIST
+-- GET SERVERS
 --========================================================
 
 local function GetServers()
 
-    local servers = {}
+    local suitableServers = {}
+
+    local totalServers = 0
+    local lowServers = 0
+    local pagesChecked = 0
 
     local cursor = ""
 
     for page = 1, MAX_PAGES do
+
+        pagesChecked = page
+
+        Status.Text =
+            "Scanning page "
+            .. tostring(page)
+            .. "/"
+            .. tostring(MAX_PAGES)
 
         local url =
             "https://games.roblox.com/v1/games/"
@@ -273,23 +297,31 @@ local function GetServers()
 
         end
 
-        local success, response =
+        --================================================
+        -- REQUEST
+        --================================================
+
+        local requestSuccess, response =
             pcall(function()
 
                 return game:HttpGet(url)
 
             end)
 
-        if not success then
+        if not requestSuccess then
 
             warn(
-                "[ServerHop] HttpGet failed:",
+                "[ServerHop] HTTP error:",
                 response
             )
 
             break
 
         end
+
+        --================================================
+        -- JSON
+        --================================================
 
         local decodeSuccess, data =
             pcall(function()
@@ -298,37 +330,87 @@ local function GetServers()
 
             end)
 
-        if not decodeSuccess or not data then
+        if not decodeSuccess or type(data) ~= "table" then
 
             warn(
-                "[ServerHop] JSON decode failed"
+                "[ServerHop] JSON decode error"
             )
 
             break
 
         end
 
-        if data.data then
+        --================================================
+        -- SERVER DATA
+        --================================================
+
+        if type(data.data) == "table" then
 
             for _, server in ipairs(data.data) do
 
-                if server.id
-                and server.id ~= game.JobId
-                and server.id ~= LastServer.id
-                and server.playing
-                and server.playing >= MIN_PLAYERS
-                and server.playing <= MAX_PLAYERS then
+                totalServers += 1
 
-                    table.insert(
-                        servers,
-                        server
-                    )
+                local playerCount =
+                    tonumber(server.playing)
+
+                local maxPlayers =
+                    tonumber(server.maxPlayers)
+
+                local serverId =
+                    server.id
+
+                --========================================
+                -- KIỂM TRA SERVER
+                --========================================
+
+                if serverId
+                and type(serverId) == "string"
+                and serverId ~= game.JobId then
+
+                    -- Không quay lại server trước
+                    if serverId ~= LastServer.id then
+
+                        if playerCount then
+
+                            if playerCount >= MIN_PLAYERS
+                            and playerCount <= MAX_PLAYERS then
+
+                                -- MaxPlayers cũng phải hợp lệ
+                                if not maxPlayers
+                                or playerCount < maxPlayers then
+
+                                    table.insert(
+                                        suitableServers,
+                                        server
+                                    )
+
+                                    lowServers += 1
+
+                                end
+
+                            end
+
+                        end
+
+                    end
 
                 end
 
             end
 
         end
+
+        --================================================
+        -- ĐỦ SERVER THÌ DỪNG
+        --================================================
+
+        if #suitableServers >= TARGET_SERVERS then
+            break
+        end
+
+        --================================================
+        -- NEXT PAGE
+        --================================================
 
         cursor =
             data.nextPageCursor or ""
@@ -337,31 +419,34 @@ local function GetServers()
             break
         end
 
+        -- Nghỉ nhỏ giữa request
         task.wait(0.12)
 
     end
 
-    return servers
+    return suitableServers, totalServers, pagesChecked
 
 end
 
 --========================================================
--- SORT SERVER
+-- SORT THEO PRIORITY
 --========================================================
 
 local function SortServers(servers)
 
-    local result = {}
+    local sorted = {}
+
+    -- 2 > 3 > 1 > 4 > 5
 
     for _, wantedPlayers in ipairs(PRIORITY) do
 
         for _, server in ipairs(servers) do
 
-            if server.playing ==
-                wantedPlayers then
+            if tonumber(server.playing)
+                == wantedPlayers then
 
                 table.insert(
-                    result,
+                    sorted,
                     server
                 )
 
@@ -371,7 +456,7 @@ local function SortServers(servers)
 
     end
 
-    return result
+    return sorted
 
 end
 
@@ -395,14 +480,31 @@ local function ServerHop()
         "Searching..."
 
     Status.Text =
-        "Finding servers..."
+        "Searching servers..."
 
     --====================================================
     -- GET SERVERS
     --====================================================
 
-    local servers =
+    local servers, totalServers, pagesChecked =
         GetServers()
+
+    --====================================================
+    -- DEBUG
+    --====================================================
+
+    print("==============================")
+    print("[ServerHop]")
+    print("API servers:", totalServers)
+    print("Suitable 1-5:", #servers)
+    print("Pages checked:", pagesChecked)
+    print("Current JobId:", game.JobId)
+    print("Last JobId:", LastServer.id or "None")
+    print("==============================")
+
+    --====================================================
+    -- KHÔNG CÓ SERVER
+    --====================================================
 
     if #servers == 0 then
 
@@ -411,12 +513,23 @@ local function ServerHop()
 
         HopButton.Active = true
 
-        Status.Text =
-            "No suitable server"
+        if totalServers == 0 then
+
+            Status.Text =
+                "API returned 0 servers"
+
+        else
+
+            Status.Text =
+                "API:"
+                .. tostring(totalServers)
+                .. " | 1-5: 0"
+
+        end
 
         hopping = false
 
-        task.delay(2, function()
+        task.delay(4, function()
 
             if Status then
                 Status.Text = ""
@@ -435,10 +548,6 @@ local function ServerHop()
     local sorted =
         SortServers(servers)
 
-    --====================================================
-    -- GIỚI HẠN ATTEMPTS
-    --====================================================
-
     local attempts =
         math.min(
             #sorted,
@@ -448,9 +557,9 @@ local function ServerHop()
     Status.Text =
         "Found "
         .. tostring(#sorted)
-        .. " servers"
+        .. " | Trying..."
 
-    task.wait(0.3)
+    task.wait(0.2)
 
     --====================================================
     -- TRY SERVER
@@ -465,17 +574,27 @@ local function ServerHop()
             break
         end
 
+        local count =
+            tonumber(target.playing) or 0
+
         Status.Text =
-            "Trying "
+            "Try "
             .. tostring(i)
             .. "/"
             .. tostring(attempts)
-            .. " - "
-            .. tostring(target.playing)
+            .. " | "
+            .. tostring(count)
             .. " players"
 
         HopButton.Text =
             "Teleport..."
+
+        print(
+            "[ServerHop] Trying server:",
+            target.id,
+            "Players:",
+            count
+        )
 
         local success, errorMessage =
             pcall(function()
@@ -492,14 +611,15 @@ local function ServerHop()
 
             end)
 
-        --================================================
-        -- TELEPORT CALL ACCEPTED
-        --================================================
-
         if success then
 
-            -- Teleport đang được xử lý
-            -- Không tiếp tục spam server khác
+            print(
+                "[ServerHop] Teleport requested"
+            )
+
+            Status.Text =
+                "Teleporting..."
+
             return
 
         end
@@ -511,12 +631,12 @@ local function ServerHop()
             errorMessage
         )
 
-        task.wait(0.3)
+        task.wait(0.25)
 
     end
 
     --====================================================
-    -- TẤT CẢ THẤT BẠI
+    -- ALL FAILED
     --====================================================
 
     HopButton.Text =
@@ -525,11 +645,11 @@ local function ServerHop()
     HopButton.Active = true
 
     Status.Text =
-        "All attempts failed"
+        "All teleport attempts failed"
 
     hopping = false
 
-    task.delay(2, function()
+    task.delay(4, function()
 
         if Status then
             Status.Text = ""
@@ -540,7 +660,7 @@ local function ServerHop()
 end
 
 --========================================================
--- BUTTON CLICK
+-- CLICK
 --========================================================
 
 HopButton.MouseButton1Click:Connect(function()
@@ -554,10 +674,11 @@ end)
 --========================================================
 
 print("================================")
-print(" Server Hop GUI loaded")
-print(" Players: 1-5")
+print(" SERVER HOP GUI READY")
+print(" Range: 1-5 players")
 print(" Priority: 2 > 3 > 1 > 4 > 5")
 print(" Max pages:", MAX_PAGES)
+print(" Target servers:", TARGET_SERVERS)
 print(" Max attempts:", MAX_ATTEMPTS)
 print("================================")
 
