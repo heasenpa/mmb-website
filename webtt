@@ -168,15 +168,17 @@ local function sendData()
     local gameName = getGameName()
 
     local data = {
-        username = LocalPlayer.Name,
-        displayName = LocalPlayer.DisplayName,
-        userId = LocalPlayer.UserId,
+    username = LocalPlayer.Name,
+    displayName = LocalPlayer.DisplayName,
+    userId = LocalPlayer.UserId,
 
-        map = gameName,
+    map = gameName,
 
-        jobId = game.JobId,
-        placeId = game.PlaceId
-    }
+    jobId = game.JobId,
+    placeId = game.PlaceId,
+
+    serverPlayers = #Players:GetPlayers()
+}
 
     -- Chỉ gửi Coins nếu game có Coins
     if coins ~= nil then
